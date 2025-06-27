@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Naveen Chatbot</title>
+
+    <style>
+        
+        #chatTitle {
+    text-align: center;
+    font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+    color: #2b0cf6;
+    font-size: 25px;
+    margin: 10px 0 5px;
+}
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #74ebd5, #9face6);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #chatbox {
+            width: 100%;
+            max-width: 500px;
+            height: 80vh;
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #chatlog {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+
+        .message {
+            margin: 10px 0;
+            max-width: 80%;
+            padding: 12px 15px;
+            border-radius: 15px;
+            position: relative;
+            word-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .user {
+            background-color: #d1e7dd;
+            align-self: flex-end;
+            text-align: right;
+            border-bottom-right-radius: 0;
+        }
+
+        .bot {
+            background-color: #e2e3e5;
+            align-self: flex-start;
+            text-align: left;
+            border-bottom-left-radius: 0;
+        }
+
+        .timestamp {
+            display: block;
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        #inputContainer {
+            display: flex;
+            padding: 10px;
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+        }
+
+        #inputBox {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            font-size: 16px;
+        }
+
+        #micBtn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            margin-left: 10px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        #micBtn:hover {
+            background-color: #0056b3;
+        }
+
+        #typingIndicator{
+            text-align: left;
+            color: #555;
+            font-size: 16px;
+            padding: 10px 20px;
+            font-style: italic;
+            animation: fadeIn 0.3s ease-in-out;            
+        }
+
+        .dots::after {
+            content: '';
+            display: inline-block;
+            width: 1em;
+            animation: dots 1.5s steps(3, end) infinite;
+        }
+
+        @keyframes dots{
+            0%   { content: ''; }
+            33%  { content: '.'; }
+            66%  { content: '..'; }
+            100% { content: '...'; }
+
+        }
+
+        @keyframes fadeIn{
+            from { opacity: 0; }
+            to { opacity: 1; }
+
+        }
+           
+    </style>
+</head>
+<body>
+    <div id="chatbox">
+         <h1 id="chatTitle">Naveen Chatbot</h1>
+        <div id="chatlog"></div>
+        <div id="typingIndicator" style="display: none;">🤖 Typing<span class="dots">...</span></div>
+
+        <div id="inputContainer">
+            <input id="inputBox" type="text" placeholder="Type your message..." />
+            <button id="micBtn">🎤</button>
+        </div>
+    </div>
+
+    <script>
+        const inputBox = document.getElementById('inputBox');
+        const micBtn = document.getElementById('micBtn');
+        const chatlog = document.getElementById('chatlog');
+
+        function appendMessage(text, sender) {
+            const msg = document.createElement('div');
+            msg.className = `message ${sender}`;
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            msg.innerHTML = `${text}<span class="timestamp">${timestamp}</span>`;
+            chatlog.appendChild(msg);
+            chatlog.scrollTop = chatlog.scrollHeight;
+        }
+
+        function sendMessage(message) {
+            appendMessage(message, 'user');
+            document.getElementById('typingIndicator').style.display = 'block';
+
+            // Simulate bot response for demo purpose
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('typingIndicator').style.display = 'none';
+                appendMessage(data.response, 'bot');
+                speakText(data.response);
+            })
+            .catch(() => {
+                document.getElementById('typingIndicator').style.display = 'none';
+                appendMessage("Sorry, I'm having trouble responding.", 'bot');
+            });
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
+        }
+
+        inputBox.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                const message = inputBox.value.trim();
+                if (message) {
+                    sendMessage(message);
+                    inputBox.value = '';
+                }
+            }
+        });
+
+        micBtn.addEventListener('click', () => {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            recognition.start();
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                inputBox.value = transcript;
+                sendMessage(transcript);
+            };
+
+            recognition.onerror = function () {
+                alert("Speech recognition failed.");
+            };
+        });
+    </script>
+</body>
+</html>
